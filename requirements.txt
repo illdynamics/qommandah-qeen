@@ -1,0 +1,7 @@
+# Game dependencies for Cyqle 1: The Quantum Platformer
+# This file lists all Python packages required to run the game
+
+# Pygame Community Edition - Game development framework
+pygame-ce>=2.4.0,<3.0.0
+
+# Note: Additional dependencies may be added as development progresses
