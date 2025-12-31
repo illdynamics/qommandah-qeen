@@ -50,7 +50,7 @@ class BaseEnemy(Entity):
         self._speed = speed
         self._attack_range = attack_range
         self._detection_range = detection_range
-        self._state = EnemyState.IDLE
+        self._state = EnemyState.PATROL  # Start patrolling immediately
         self._direction = Direction.RIGHT
         self._patrol_points: List[Vec2i] = []
         self._current_patrol_index = 0
@@ -129,24 +129,22 @@ class BaseEnemy(Entity):
     def think(self, delta_time: float, player_position: Optional[Vec2i] = None) -> None:
         """
         Main AI thinking method to be overridden by specific enemies.
+        Base class just handles timers - subclasses handle state logic.
         """
         self._update_timers(delta_time)
         
+        # Dead state is always handled here
         if self._state == EnemyState.DEAD:
             self.handle_dead_state(delta_time)
             return
-            
+        
+        # Hurt state is handled here - enemy can't move while stunned
         if self._state == EnemyState.HURT:
             self.handle_hurt_state(delta_time)
             return
-            
-        if player_position and self.can_detect_player(player_position):
-            if self._state != EnemyState.ATTACK and self._state != EnemyState.CHASE:
-                self.change_state(EnemyState.CHASE)
-        else:
-            if self._state == EnemyState.CHASE or self._state == EnemyState.ATTACK:
-                self.change_state(EnemyState.PATROL if self._patrol_points else EnemyState.IDLE)
         
+        # Let subclass handle all other state logic via their overridden think()
+        # This allows WalqerBot etc. to control their own patrol/chase behavior
         if self._state == EnemyState.IDLE:
             self.handle_idle_state(delta_time, player_position)
         elif self._state == EnemyState.PATROL:
@@ -250,15 +248,32 @@ class BaseEnemy(Entity):
         self._animation_timer = 0.0
         
         if new_state == EnemyState.HURT:
-            self._hurt_timer = 0.3
+            self._hurt_timer = 1.0  # Stunned for 1 second when hit
         elif new_state == EnemyState.DEAD:
             self._death_timer = 1.0
 
     def can_detect_player(self, player_position: Vec2i) -> bool:
-        """Check if enemy can detect the player."""
+        """Check if enemy can detect the player.
+        
+        Enemy can only see player if:
+        1. Player is within detection range
+        2. Player is in FRONT of enemy (based on facing direction)
+        """
+        # Check distance first
         distance = ((player_position.x - self.position.x) ** 2 + 
                    (player_position.y - self.position.y) ** 2) ** 0.5
-        return distance <= self._detection_range
+        if distance > self._detection_range:
+            return False
+        
+        # Check if player is in front of enemy based on facing direction
+        dx = player_position.x - self.position.x
+        
+        if self._direction == Direction.RIGHT:
+            # Facing right - can only see player if they're to the RIGHT (dx > 0)
+            return dx > 0
+        else:
+            # Facing left - can only see player if they're to the LEFT (dx < 0)
+            return dx < 0
 
     def take_damage(self, amount: int, knockback: Optional[Vec2i] = None) -> None:
         """Apply damage to the enemy."""
@@ -275,9 +290,16 @@ class BaseEnemy(Entity):
             self.change_state(EnemyState.DEAD)
         else:
             self.change_state(EnemyState.HURT)
-
+    
     def on_damage_taken(self, amount: int) -> None:
+        """Called when enemy takes damage. Can be overridden."""
         pass
+    
+    def alert_to_player(self, player_position: Vec2i) -> None:
+        """Alert enemy to player position (e.g., when shot from behind)."""
+        # Turn to face the player
+        dx = player_position.x - self.position.x
+        self._direction = Direction.RIGHT if dx > 0 else Direction.LEFT
 
     def perform_attack(self) -> None:
         """Perform attack action. Must be overridden by specific enemies."""
@@ -475,3 +497,39 @@ class BaseEnemy(Entity):
     @property
     def damage(self) -> int:
         return self._damage
+    
+    @property
+    def speed(self) -> float:
+        return self._speed
+    
+    @property
+    def attack_range(self) -> float:
+        return self._attack_range
+    
+    @property
+    def detection_range(self) -> float:
+        return self._detection_range
+    
+    @property
+    def health(self) -> int:
+        return self._health
+    
+    @health.setter
+    def health(self, value: int) -> None:
+        self._health = value
+    
+    @property
+    def hurt_timer(self) -> float:
+        return self._hurt_timer
+    
+    @property
+    def death_timer(self) -> float:
+        return self._death_timer
+    
+    @property
+    def direction(self) -> Direction:
+        return self._direction
+    
+    @direction.setter
+    def direction(self, value: Direction) -> None:
+        self._direction = value

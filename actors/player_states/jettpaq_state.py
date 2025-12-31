@@ -1,5 +1,6 @@
 import pygame
 import math
+import random
 from typing import Optional, Tuple
 from .base_state import BasePlayerState
 from shared.constants import (
@@ -216,7 +217,7 @@ class JettpaqState(BasePlayerState):
             True if jump was successful
         """
         if self.player.is_on_ground:
-            self.player.velocity.y = -PLAYER_JUMP_FORCE
+            self.player.velocity.y = PLAYER_JUMP_FORCE  # Already negative
             return True
         return False
     

@@ -1,5 +1,6 @@
 from enum import Enum, auto
 from typing import NamedTuple, Tuple, Optional, Union, List, Dict, Any
+from dataclasses import dataclass
 import pygame
 
 class Vec2i(NamedTuple):
@@ -32,33 +33,46 @@ class Vec2i(NamedTuple):
         """Create from tuple."""
         return Vec2i(tup[0], tup[1])
 
-class Rect(NamedTuple):
-    """Axis-aligned rectangle defined by top-left and bottom-right corners."""
-    left: int
-    top: int
-    right: int
-    bottom: int
+@dataclass
+class Rect:
+    """Axis-aligned rectangle with x, y, width, height."""
+    x: float
+    y: float
+    width: float
+    height: float
     
-    def width(self) -> int:
-        """Get rectangle width."""
-        return self.right - self.left
+    @property
+    def left(self) -> float:
+        """Get left edge."""
+        return self.x
     
-    def height(self) -> int:
-        """Get rectangle height."""
-        return self.bottom - self.top
+    @property
+    def top(self) -> float:
+        """Get top edge."""
+        return self.y
+    
+    @property
+    def right(self) -> float:
+        """Get right edge."""
+        return self.x + self.width
+    
+    @property
+    def bottom(self) -> float:
+        """Get bottom edge."""
+        return self.y + self.height
     
     def position(self) -> Vec2i:
         """Get top-left position."""
-        return Vec2i(self.left, self.top)
+        return Vec2i(int(self.x), int(self.y))
     
     def size(self) -> Vec2i:
         """Get size as vector."""
-        return Vec2i(self.width(), self.height())
+        return Vec2i(int(self.width), int(self.height))
     
     def contains(self, point: Vec2i) -> bool:
         """Check if point is inside rectangle."""
-        return (self.left <= point.x < self.right and 
-                self.top <= point.y < self.bottom)
+        return (self.x <= point.x < self.x + self.width and 
+                self.y <= point.y < self.y + self.height)
     
     def intersects(self, other: 'Rect') -> bool:
         """Check if two rectangles intersect."""
@@ -69,8 +83,12 @@ class Rect(NamedTuple):
     
     def move(self, offset: Vec2i) -> 'Rect':
         """Move rectangle by offset."""
-        return Rect(self.left + offset.x, self.top + offset.y,
-                   self.right + offset.x, self.bottom + offset.y)
+        return Rect(self.x + offset.x, self.y + offset.y,
+                   self.width, self.height)
+    
+    def copy(self) -> 'Rect':
+        """Create a copy."""
+        return Rect(self.x, self.y, self.width, self.height)
 
 class PlayerState(Enum):
     """Player character state machine states."""

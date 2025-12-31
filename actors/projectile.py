@@ -48,7 +48,7 @@ class Projectile(Entity):
         self.speed = speed
         self.lifetime = lifetime
         self.remaining_lifetime = lifetime
-        self.size = size
+        self.projectile_size = size  # Renamed to avoid overwriting Entity.size tuple
         self.color = color
         self.penetrating = False
         self.hit_entities = []
@@ -185,25 +185,31 @@ class Projectile(Entity):
             self.trail_emitter.set_active(False)
             self.trail_emitter.clear_particles()
 
-    def render(self, surface: pygame.Surface, camera_offset: Vector2) -> None:
+    def render(self, surface: pygame.Surface, camera_offset) -> None:
         """
         Render the projectile.
 
         Args:
             surface: Surface to render to
-            camera_offset: Camera offset for screen positioning
+            camera_offset: Camera offset for screen positioning (tuple or Vector2)
         """
         if not self.active:
             return
 
-        screen_x = int(self.position.x - camera_offset.x)
-        screen_y = int(self.position.y - camera_offset.y)
+        # Handle both tuple and Vector2 camera offset
+        if hasattr(camera_offset, 'x'):
+            cam_x, cam_y = camera_offset.x, camera_offset.y
+        else:
+            cam_x, cam_y = camera_offset[0], camera_offset[1]
+
+        screen_x = int(self.position.x - cam_x)
+        screen_y = int(self.position.y - cam_y)
         
         pygame.draw.circle(
             surface,
             self.color,
             (screen_x, screen_y),
-            self.size // 2
+            self.projectile_size // 2
         )
 
     def is_active(self) -> bool:

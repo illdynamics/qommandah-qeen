@@ -129,8 +129,7 @@ class Entity:
             x: The new x-coordinate
             y: The new y-coordinate
         """
-        self.position.x = x
-        self.position.y = y
+        self.position = Vector2(int(x), int(y))
         
     def set_velocity(self, x: float, y: float) -> None:
         """
@@ -140,8 +139,7 @@ class Entity:
             x: The new x-velocity
             y: The new y-velocity
         """
-        self.velocity.x = x
-        self.velocity.y = y
+        self.velocity = Vector2(int(x), int(y))
         
     def add_velocity(self, x: float, y: float) -> None:
         """

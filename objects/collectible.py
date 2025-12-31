@@ -65,19 +65,79 @@ class Collectible(BaseObject):
             )
     
     def _initialize_sprite(self) -> None:
-        # Create fallback sprite (colored circle)
-        self.sprite = pygame.Surface((24, 24), pygame.SRCALPHA)
-        pygame.draw.circle(self.sprite, self.collectible_data.color, (12, 12), 10)
-        pygame.draw.circle(self.sprite, (255, 255, 255), (12, 12), 10, 2)
+        """Load collectible sprite from sprite sheet."""
+        import os
+        from shared.constants import ASSETS_PATH
         
-        # Try to load actual sprite
+        display_size = 28  # Slightly larger display size
+        
         try:
-            if hasattr(self.scene, 'resource_manager') and self.scene.resource_manager:
-                loaded = self.scene.resource_manager.get_image(self.collectible_data.sprite_key)
-                if loaded:
-                    self.sprite = loaded
-        except (AttributeError, KeyError, Exception):
-            pass
+            sprite_path = os.path.join(ASSETS_PATH, "qq-items-collectibles.png")
+            if os.path.exists(sprite_path):
+                sheet = pygame.image.load(sprite_path).convert_alpha()
+                
+                # Sprite sheet is 512x128 = 8 columns x 2 rows of 64x64 cells
+                cell_size = 64
+                
+                # Map collectible type to sprite position (col, row)
+                sprite_positions = {
+                    CollectibleType.CHIP: (0, 0),       # First item
+                    CollectibleType.FLOPPY: (1, 0),    # Second item  
+                    CollectibleType.MEDALLION: (2, 0), # Third item
+                    CollectibleType.BRIQ: (3, 0),      # Fourth item
+                }
+                
+                col, row = sprite_positions.get(self.collectible_type, (0, 0))
+                
+                # Extract sprite from sheet
+                src_x = col * cell_size
+                src_y = row * cell_size
+                
+                # Create surface and blit the cell
+                frame = pygame.Surface((cell_size, cell_size), pygame.SRCALPHA)
+                frame.blit(sheet, (0, 0), (src_x, src_y, cell_size, cell_size))
+                
+                # Scale to display size
+                self.sprite = pygame.transform.scale(frame, (display_size, display_size))
+                self.frames = [self.sprite]
+                self.current_frame = 0
+                self.frame_timer = 0.0
+            else:
+                raise Exception("Sprite sheet not found")
+                
+        except Exception as e:
+            print(f"Failed to load collectible sprite: {e}")
+            # Fallback to colored shapes
+            self._create_fallback_sprite(display_size)
+        
+        self.rect = self.sprite.get_rect()
+        self.rect.x = int(self.position[0])
+        self.rect.y = int(self.position[1])
+    
+    def _create_fallback_sprite(self, size: int) -> None:
+        """Create fallback colored sprite if loading fails."""
+        self.sprite = pygame.Surface((size, size), pygame.SRCALPHA)
+        
+        if self.collectible_type == CollectibleType.CHIP:
+            # Green chip
+            pygame.draw.rect(self.sprite, (0, 200, 0), (2, 2, size-4, size-4))
+            pygame.draw.rect(self.sprite, (0, 255, 0), (2, 2, size-4, size-4), 2)
+        elif self.collectible_type == CollectibleType.FLOPPY:
+            # Purple floppy
+            pygame.draw.rect(self.sprite, (150, 0, 200), (2, 2, size-4, size-4))
+            pygame.draw.rect(self.sprite, (200, 100, 255), (4, 3, size-8, 5))
+        elif self.collectible_type == CollectibleType.MEDALLION:
+            # Gold medallion
+            pygame.draw.circle(self.sprite, (200, 150, 0), (size//2, size//2), size//2 - 2)
+            pygame.draw.circle(self.sprite, (255, 200, 50), (size//2, size//2), size//2 - 2, 2)
+        else:
+            # Orange briq
+            pygame.draw.rect(self.sprite, (200, 100, 0), (2, 3, size-4, size-5))
+            pygame.draw.rect(self.sprite, (255, 150, 50), (2, 3, size-4, size-5), 2)
+        
+        self.frames = [self.sprite]
+        self.current_frame = 0
+        self.frame_timer = 0.0
         
         self.rect = self.sprite.get_rect()
         self.rect.x = int(self.position[0])
@@ -88,6 +148,16 @@ class Collectible(BaseObject):
             self._process_collection(dt)
         else:
             self._update_bob_motion(dt)
+            self._update_animation(dt)
+    
+    def _update_animation(self, dt: float) -> None:
+        """Animate collectible frames with a subtle shimmer."""
+        if hasattr(self, 'frames') and len(self.frames) > 1:
+            self.frame_timer += dt
+            if self.frame_timer >= 0.4:  # Slower shimmer (~2.5 fps)
+                self.frame_timer = 0
+                self.current_frame = (self.current_frame + 1) % len(self.frames)
+                self.sprite = self.frames[self.current_frame]
     
     def _update_bob_motion(self, dt: float) -> None:
         self.bob_phase += COLLECTIBLE_BOB_SPEED * dt

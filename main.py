@@ -1,7 +1,25 @@
 #!/usr/bin/env python3
 """
-QommandahQeen MAQZIMUM v0.2.0-alpha
+QommandahQeen MAQZIMUM v0.5.3-alpha
 A Commander Keen-inspired platformer with QonQrete aesthetics.
+
+CONTROLS:
+- Arrow Keys / WASD: Move
+- Z / Space / Up / W: Jump  
+- X / Ctrl: Shoot
+- Enter / E: Interact with doors
+- ESC: Pause
+- F11: Fullscreen
+
+HOW TO USE POWERUPS:
+- Just walk into the JettPaq (blue) or JumpUpstiq (red) to collect them!
+- Once collected, you'll see the powerup bar appear in the HUD
+- Powerups last 2 minutes
+
+v0.5.3-alpha Changelog:
+- Fixed JettPaq crash: Added missing 'import random' 
+- Removed glitchy JettPaq powerup from level 1
+- Level now has: JumpUpstiq -> Key -> Door (clean progression)
 """
 
 import sys

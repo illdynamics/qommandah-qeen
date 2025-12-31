@@ -1,4 +1,5 @@
-# 🎮 QommandahQeen MAQZIMUM v0.1.0-alpha
+# 🎮 Qommandah Qeen
+[![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-blue.svg)](LICENSE)
 
 > **Commander Keen-Inspired Platformer with QonQrete Aesthetics**
 > Built with QonQrete AgentiQ OrQhestration
@@ -11,7 +12,17 @@ pip install pygame-ce
 
 # Run the game
 python main.py
+
+# Toggle fullscreen with F11
 ```
+
+## ✨ v0.2.1-alpha Changelog
+
+- **BUG FIX**: Fixed WalqerBot/BriqBeaver crashes (self.speed -> self._speed)
+- **BUG FIX**: Proper fullscreen scaling with game surface approach
+- **FEATURE**: Background rendering with parallax scrolling
+- **FEATURE**: Added HoverSquid enemy type (6th enemy complete!)
+- **IMPROVEMENT**: All enemies now use consistent property accessors
 
 ## 🎯 Features
 
@@ -29,11 +40,12 @@ python main.py
 ### Enemies (6 Types)
 | Enemy | Behavior | Damage | HP |
 |-------|----------|--------|-----|
-| WalQer Bot | Patrol + shoot | 1 | 3 |
-| Jumper DrQne | Periodic jumping | 1 | 2 |
-| Qortana Halo | Follow + ZAP | **2** | 4 |
-| Qlippy | Dialogue blocks | 0 | 1 |
-| BriQ Beaver | Throws arcing briQs | 1 | 3 |
+| WalQer Bot | Patrol + shoot | 10 | 50 |
+| Jumper DrQne | Periodic jumping | 15 | 60 |
+| Qortana Halo | Follow + ZAP | 15 | 60 |
+| Qlippy | Dialogue blocks | 10 | 30 |
+| BriQ Beaver | Throws arcing briQs | 20 | 80 |
+| Hover Squid | Floating swoop attack | 15 | 40 |
 
 ### WoNQmodes (6 Modes)
 | Mode | Effect |
@@ -67,19 +79,19 @@ All sprites in `assets/`:
 
 ### Project Structure
 ```
-qommandah-qeen-v0.1.0-alpha/
+qommandah-qeen-v0.2.1-alpha/
 ├── actors/           # Player, enemies, projectiles
-│   ├── enemies/      # All 6 enemy types
+│   ├── enemies/      # All 6 enemy types (incl. HoverSquid!)
 │   └── player_states/ # Normal, JumpUpStiQ, JettPaQ
 ├── core/             # Engine, resources, input, time
 ├── world/            # Physics, collision, tiles
 ├── modes/            # 6 WoNQmodes
 ├── objects/          # Collectibles, powerups, hazards
-├── scenes/           # Menu, game, level complete
+├── scenes/           # Menu, game scene with backgrounds
 ├── ui/               # HUD, menus
 ├── shared/           # Constants, types, sprite data
 ├── levels/           # Level JSON files
-└── assets/           # All sprite assets
+└── assets/           # Sprites + qq-background1-4.png
 ```
 
 ## 🎮 Controls
@@ -96,3 +108,8 @@ qommandah-qeen-v0.1.0-alpha/
 Built with 💜 using QonQrete AgentiQ OrQhestration
 
 **KABOOMAGE!!! 💥**
+
+## License
+
+Qommandah Qeen is licensed under the GNU Affero General Public License v3.0 (AGPL-3.0).
+See the [LICENSE](LICENSE) file for full text.

@@ -8,6 +8,7 @@ from actors.enemies.jumper_drqne import JumperDrqne
 from actors.enemies.qortana_halo import QortanaHalo
 from actors.enemies.qlippy import Qlippy
 from actors.enemies.briq_beaver import BriqBeaver
+from actors.enemies.hover_squid import HoverSquid
 
 class EnemyManager:
     def __init__(self):
@@ -25,13 +26,23 @@ class EnemyManager:
             enemy = Qlippy(x, y)
         elif enemy_type == "briq_beaver":
             enemy = BriqBeaver(position)
+        elif enemy_type == "hover_squid":
+            enemy = HoverSquid(position)
         else:
             return
         self.enemies.append(enemy)
 
-    def update(self, delta_time: float, player_position: Optional[Vec2i] = None):
+    def update(self, delta_time: float, player_position = None):
+        # Convert player position to Vec2i if it's not already
+        player_pos = None
+        if player_position is not None:
+            if hasattr(player_position, 'x') and hasattr(player_position, 'y'):
+                player_pos = Vec2i(int(player_position.x), int(player_position.y))
+            else:
+                player_pos = player_position
+        
         for enemy in self.enemies[:]:
-            enemy.think(delta_time, player_position)
+            enemy.think(delta_time, player_pos)
             enemy.update(delta_time)
             if not enemy.is_active():
                 self.enemies.remove(enemy)
@@ -46,6 +57,10 @@ class EnemyManager:
     def render(self, surface: pygame.Surface, camera_offset):
         for enemy in self.enemies:
             enemy.render(surface, camera_offset)
+
+    def get_all_enemies(self) -> List[BaseEnemy]:
+        """Get all active enemies."""
+        return self.enemies
 
     def clear(self):
         self.enemies.clear()

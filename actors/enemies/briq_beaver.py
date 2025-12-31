@@ -153,7 +153,7 @@ class BriqBeaver(BaseEnemy):
         
         # Move toward patrol point
         direction_x = 1 if target.x > self.position.x else -1
-        self.move(Vec2i(direction_x * int(self.speed * delta_time * 60), 0))
+        self.move(Vec2i(direction_x * int(self._speed * delta_time * 60), 0))
     
     def _handle_chase_state(self, delta_time: float, player_position: Optional[Vec2i]) -> None:
         """Handle chase state behavior."""
@@ -162,7 +162,7 @@ class BriqBeaver(BaseEnemy):
             
         # Move toward player
         direction_x = 1 if player_position.x > self.position.x else -1
-        self.move(Vec2i(direction_x * int(self.speed * delta_time * 60), 0))
+        self.move(Vec2i(direction_x * int(self._speed * delta_time * 60), 0))
         
         # Update direction
         self.direction = Direction.RIGHT if direction_x > 0 else Direction.LEFT

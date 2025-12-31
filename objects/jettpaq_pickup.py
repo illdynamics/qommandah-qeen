@@ -1,8 +1,10 @@
 import pygame
 import math
+import os
 from typing import Tuple
 from core.scene import Scene
 from shared.types import PowerupType
+from shared.constants import ASSETS_PATH
 from objects.powerup_pickup import PowerupPickup
 
 
@@ -15,16 +17,32 @@ class JettpaqPickup(PowerupPickup):
         self._initialize_jettpaq_sprite()
     
     def _initialize_jettpaq_sprite(self) -> None:
-        """Create the JettPaQ-specific sprite with blue glow."""
-        self.sprite = pygame.Surface((28, 28), pygame.SRCALPHA)
-        # Blue jetpack icon
-        pygame.draw.rect(self.sprite, (80, 120, 255), (4, 4, 20, 20), border_radius=4)
-        pygame.draw.polygon(self.sprite, (100, 150, 255), [(8, 24), (14, 28), (20, 24)])
-        pygame.draw.rect(self.sprite, (255, 255, 255), (4, 4, 20, 20), 1, border_radius=4)
+        """Load JettPaQ sprite from qq-bonus-powerups.png."""
+        try:
+            sprite_path = os.path.join(ASSETS_PATH, "qq-bonus-powerups.png")
+            if os.path.exists(sprite_path):
+                sheet = pygame.image.load(sprite_path).convert_alpha()
+                # Sheet is 256x128 = 4x2 grid of 64x64 cells
+                # JettPaq is at cell (0,0) or (1,0)
+                cell_size = 64
+                frame = pygame.Surface((cell_size, cell_size), pygame.SRCALPHA)
+                frame.blit(sheet, (0, 0), (0, 0, cell_size, cell_size))
+                self.sprite = pygame.transform.scale(frame, (32, 32))
+            else:
+                self._create_fallback_sprite()
+        except Exception as e:
+            print(f"Failed to load JettPaq sprite: {e}")
+            self._create_fallback_sprite()
+    
+    def _create_fallback_sprite(self) -> None:
+        """Create fallback blue jetpack icon."""
+        self.sprite = pygame.Surface((32, 32), pygame.SRCALPHA)
+        pygame.draw.rect(self.sprite, (80, 120, 255), (4, 4, 24, 24), border_radius=4)
+        pygame.draw.polygon(self.sprite, (100, 150, 255), [(8, 28), (16, 32), (24, 28)])
+        pygame.draw.rect(self.sprite, (255, 255, 255), (4, 4, 24, 24), 2, border_radius=4)
     
     def update(self, dt: float) -> None:
         super().update(dt)
-        # Animate glow
         self.glow_phase += dt * 3.0
         if self.glow_phase >= 2 * math.pi:
             self.glow_phase -= 2 * math.pi
@@ -43,11 +61,9 @@ class JettpaqPickup(PowerupPickup):
         screen_x = self.position[0] - cam_x
         screen_y = self.position[1] - cam_y
         
-        # Draw glow effect
-        glow_intensity = int(50 + 30 * math.sin(self.glow_phase))
-        glow_surf = pygame.Surface((40, 40), pygame.SRCALPHA)
-        pygame.draw.circle(glow_surf, (100, 150, 255, glow_intensity), (20, 20), 18)
-        surface.blit(glow_surf, (screen_x - 6, screen_y - 6))
-        
-        # Draw sprite
+        # Draw sprite (no glow to avoid glitching)
         surface.blit(self.sprite, (screen_x, screen_y))
+    
+    def get_rect(self) -> pygame.Rect:
+        """Get collision rectangle."""
+        return pygame.Rect(self.position[0], self.position[1], 32, 32)

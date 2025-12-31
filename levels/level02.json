@@ -10,7 +10,7 @@
         "tile_size": 32
     },
     
-    "background": "qq-background2.png",
+    "background": "background2",
     "music": "level2_theme.ogg",
     
     "player_spawn": {

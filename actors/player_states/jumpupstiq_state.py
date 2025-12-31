@@ -16,6 +16,7 @@ from shared.constants import (
 from shared.types import Direction
 from core.time import Time
 from core.particles import ParticleSystem
+from core.input import InputManager
 
 class JumpUpStiqState(BasePlayerState):
     """Player state for Jumpupstiq powerup with pogo bounce mechanics."""
@@ -55,9 +56,49 @@ class JumpUpStiqState(BasePlayerState):
         super().update(dt)
         self._update_timers(dt)
         self._apply_gravity(dt)
-        self._check_bounce_opportunity()
+        self._check_ground_collision()
         self._update_particles(dt)
         self._update_animation()
+
+    def _apply_gravity(self, dt: float) -> None:
+        """Apply gravity to player."""
+        self.player.velocity.y += GRAVITY * dt
+        # Clamp to terminal velocity
+        if self.player.velocity.y > PLAYER_TERMINAL_VELOCITY:
+            self.player.velocity.y = PLAYER_TERMINAL_VELOCITY
+
+    def _check_ground_collision(self) -> None:
+        """Check for ground collision."""
+        from shared.constants import TILE_SIZE
+        
+        if self.player._collision and hasattr(self.player._collision, 'tilemap') and self.player._collision.tilemap:
+            tilemap = self.player._collision.tilemap
+            # Check ground below player feet
+            feet_y = int((self.player.position.y + self.player.size.y) // TILE_SIZE)
+            left_x = int(self.player.position.x // TILE_SIZE)
+            right_x = int((self.player.position.x + self.player.size.x - 1) // TILE_SIZE)
+            
+            if self.player.velocity.y >= 0:
+                for tx in range(left_x, right_x + 1):
+                    if 0 <= tx < tilemap.width and 0 <= feet_y < tilemap.height:
+                        if tilemap.is_solid(tx, feet_y):
+                            self.player.position.y = feet_y * TILE_SIZE - self.player.size.y
+                            self.player.velocity.y = 0
+                            self.is_bouncing = False
+                            self.player._on_ground = True
+                            if not self.special_bounce_available:
+                                self.special_bounce_available = True
+                            return
+            self.player._on_ground = False
+        else:
+            # Fallback ground check
+            if self.player.position.y >= self.player.ground_level - self.player.size.y:
+                self.player.position.y = self.player.ground_level - self.player.size.y
+                self.player.velocity.y = 0
+                self.is_bouncing = False
+                self.player._on_ground = True
+                if not self.special_bounce_available:
+                    self.special_bounce_available = True
 
     def _update_timers(self, dt: float) -> None:
         """Update cooldown timers."""
@@ -128,16 +169,6 @@ class JumpUpStiqState(BasePlayerState):
             self.is_bouncing = True
             self.special_bounce_available = False
             self._create_bounce_particles(2.0)
-            self._update_animation()
-
-    def _check_bounce_opportunity(self) -> None:
-        """Check if player is on ground and can bounce."""
-        if self.player.position_y >= self.player.ground_level:
-            self.player.position.y = self.player.ground_level
-            self.player.velocity.y = 0
-            self.is_bouncing = False
-            if not self.special_bounce_available:
-                self.special_bounce_available = True
             self._update_animation()
 
     def _create_bounce_particles(self, intensity: float = 1.0) -> None:

@@ -246,12 +246,12 @@ class CollisionSystem:
         """Clear all dynamic colliders."""
         self.dynamic_colliders.clear()
     
-    def check_tile_collision(self, rect: Rect) -> List[CollisionResult]:
+    def check_tile_collision(self, rect) -> List[CollisionResult]:
         """
         Check collision with tiles at a given position.
         
         Args:
-            rect: Rectangle to check
+            rect: Rectangle to check (pygame.Rect or custom Rect)
             
         Returns:
             List of collision results
@@ -261,11 +261,23 @@ class CollisionSystem:
         if not self.tilemap:
             return results
         
+        # Handle both pygame.Rect and custom Rect types
+        if hasattr(rect, 'x'):
+            rect_x = rect.x
+            rect_y = rect.y
+            rect_w = rect.width
+            rect_h = rect.height
+        else:
+            rect_x = rect[0]
+            rect_y = rect[1]
+            rect_w = rect[2]
+            rect_h = rect[3]
+        
         # Get tiles that overlap with the rectangle
-        start_x = max(0, int(rect.x // self.tilemap.tile_size))
-        end_x = min(self.tilemap.width, int((rect.x + rect.width) // self.tilemap.tile_size) + 1)
-        start_y = max(0, int(rect.y // self.tilemap.tile_size))
-        end_y = min(self.tilemap.height, int((rect.y + rect.height) // self.tilemap.tile_size) + 1)
+        start_x = max(0, int(rect_x // self.tilemap.tile_size))
+        end_x = min(self.tilemap.width, int((rect_x + rect_w) // self.tilemap.tile_size) + 1)
+        start_y = max(0, int(rect_y // self.tilemap.tile_size))
+        end_y = min(self.tilemap.height, int((rect_y + rect_h) // self.tilemap.tile_size) + 1)
         
         for y in range(start_y, end_y):
             for x in range(start_x, end_x):
@@ -280,7 +292,9 @@ class CollisionSystem:
                         self.tilemap.tile_size
                     )
                     
-                    collision = get_aabb_collision_details(rect, tile_rect)
+                    # Create compatible rect for collision check
+                    check_rect = Rect(rect_x, rect_y, rect_w, rect_h)
+                    collision = get_aabb_collision_details(check_rect, tile_rect)
                     if collision:
                         collision.tile_type = tile_type
                         collision.position = Vector2(x, y)

@@ -25,11 +25,13 @@ TILE_SIZE_SUBPIXEL = TILE_SIZE * SUBPIXEL_SCALE  # 8192
 
 # Gravity and physics (in sub-pixel units per second squared)
 GRAVITY = 2400  # ~9.4 pixels/s²
-PLAYER_JUMP_FORCE = -1200  # Negative = upward
-PLAYER_MOVE_SPEED = 768  # ~3 pixels/frame at 60fps
+PLAYER_JUMP_FORCE = -950  # Balanced jump - just above platform height
+PLAYER_MOVE_SPEED = 576  # ~2.25 pixels/frame at 60fps (75% of original)
 PLAYER_ACCELERATION = 1000  # ~3.9 pixels/frame at 60fps
 PLAYER_TERMINAL_VELOCITY = 1536  # ~6 pixels/frame
 FRICTION = 200  # Ground friction
+PLAYER_INVINCIBILITY_DURATION = 2.0  # 2 seconds after hit
+PLAYER_MAX_HEALTH = 10  # 10 health bars
 
 # =============================================================================
 # TIMING
@@ -72,7 +74,8 @@ HAZARD_BLINK_INTERVAL = 0.5
 HAZARD_LASER_CYCLE_TIME = 3.0
 
 # Powerup constants
-POWERUP_DURATION = 10.0
+POWERUP_DURATION = 120.0  # 2 minutes in seconds
+POWERUP_BAR_SEGMENTS = 5  # 5 bar segments
 POWERUP_ANIMATION_SPEED = 1.5
 POWERUP_BOB_SPEED = 2.0
 POWERUP_BOB_HEIGHT = 5.0
@@ -91,7 +94,7 @@ COLLECTIBLE_BOB_SPEED = 1.5
 COLLECTIBLE_BOB_HEIGHT = 3.0
 
 # Enemy constants
-ENEMY_WALQER_HEALTH = 50
+ENEMY_WALQER_HEALTH = 30
 ENEMY_WALQER_DAMAGE = 10
 ENEMY_WALQER_SPEED = 80
 ENEMY_WALQER_DETECTION_RANGE = 200
@@ -129,7 +132,7 @@ JETTPAQ_FUEL_RECHARGE_RATE = 10.0
 JETTPAQ_FUEL_RECHARGE_DELAY = 1.0
 
 # Jumpupstiq constants
-JUMPUPSTIQ_BOUNCE_FORCE = 350
+JUMPUPSTIQ_BOUNCE_FORCE = 1900  # Double normal jump height when mounted!
 JUMPUPSTIQ_BASS_BLAST_FORCE = 500
 JUMPUPSTIQ_BASS_BLAST_RADIUS = 100
 JUMPUPSTIQ_BOUNCE_DAMPING = 0.8
@@ -197,6 +200,12 @@ ASSET_FILES = {
     "projectiles": "qq-bullets-explosions.png",     # 512x768
     "tilesets": "qq-objects-tilesets.png",          # 512x512 = 8x8 grid (64x64 tiles)
     "ui_icons": "qq-ui-icons.png",                  # 768x512
+    
+    # UI sprites (NEW!)
+    "health_ui": "qq-health-ui.png",                # 512x384 = 4x3 grid (128x128 cells)
+    "powerups_ui": "qq-powerups-ui.png",            # 512x384 = 4x3 grid (128x128 cells)
+    "key_object": "qq-key-object.png",              # 256x192 = 4x3 grid (64x64 cells)
+    "door_open": "qq-door-open.png",                # 768x128 = 6 frames (128x128 cells)
     
     # Backgrounds
     "background1": "qq-background1.png",

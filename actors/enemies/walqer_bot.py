@@ -54,6 +54,10 @@ class WalqerBot(BaseEnemy):
         self.projectiles: List[Projectile] = []
         self.vision_cone_angle = math.pi / 6  # 30 degree vision cone
         
+        # Float position for smooth movement
+        self._float_x = float(position.x)
+        self._float_y = float(position.y)
+        
         # Initialize patrol behavior
         self._update_patrol_target()
         
@@ -78,8 +82,6 @@ class WalqerBot(BaseEnemy):
             delta_time: Time since last frame in seconds
             player_position: Current position of the player (if known)
         """
-        super().think(delta_time, player_position)
-        
         # Update attack cooldown
         if self.attack_cooldown > 0:
             self.attack_cooldown -= delta_time
@@ -89,6 +91,21 @@ class WalqerBot(BaseEnemy):
             projectile.update(delta_time)
             if not projectile.is_active():
                 self.projectiles.remove(projectile)
+        
+        # Update timers
+        if self._hurt_timer > 0:
+            self._hurt_timer -= delta_time
+            if self._hurt_timer <= 0:
+                # After hurt, turn around and check for player
+                self._direction = Direction.LEFT if self._direction == Direction.RIGHT else Direction.RIGHT
+                self._update_patrol_target()
+                self.change_state(EnemyState.PATROL)
+        
+        if self._death_timer > 0:
+            self._death_timer -= delta_time
+            if self._death_timer <= 0:
+                self.destroy()
+                return
         
         # State-specific behavior
         if self._state == EnemyState.IDLE:
@@ -114,31 +131,33 @@ class WalqerBot(BaseEnemy):
                 self.change_state(EnemyState.PATROL)
     
     def _handle_patrol_state(self, delta_time: float, player_position: Optional[Vec2i]) -> None:
-        """Handle patrol state behavior."""
+        """Handle patrol state behavior - walk back and forth on small path."""
         # Check for player detection
         if player_position and self.can_detect_player(player_position):
             if self._is_player_in_vision_cone(player_position):
                 self.change_state(EnemyState.CHASE)
                 return
         
-        # Patrol movement
-        distance_to_target = math.sqrt(
-            (self.position.x - self.patrol_target.x) ** 2 +
-            (self.position.y - self.patrol_target.y) ** 2
-        )
+        # Patrol movement using float position for smooth movement
+        dx = self.patrol_target.x - self._float_x
         
-        if distance_to_target < TILE_SIZE:
-            # Reverse direction at patrol boundary
+        if abs(dx) < 8:  # Smaller threshold for snappier patrol
+            # Reached patrol target - reverse direction
             self.patrol_direction = Direction.LEFT if self.patrol_direction == Direction.RIGHT else Direction.RIGHT
+            self._direction = self.patrol_direction
             self._update_patrol_target()
-        
-        # Move toward patrol target
-        direction_x = 1 if self.patrol_target.x > self.position.x else -1
-        movement = Vec2i(direction_x * int(self.speed * delta_time * 60), 0)
-        self.move(movement)
-        
-        # Update facing direction
-        self.direction = Direction.RIGHT if direction_x > 0 else Direction.LEFT
+        else:
+            # Walk toward patrol target - 60 pixels per second (smooth visible patrol)
+            patrol_speed = 60.0  # pixels per second
+            move_amount = patrol_speed * delta_time
+            direction_x = 1 if dx > 0 else -1
+            
+            # Update float position smoothly
+            self._float_x += direction_x * move_amount
+            
+            # Update integer position for collision/rendering
+            self.position = Vec2i(int(self._float_x), self.position.y)
+            self._direction = Direction.RIGHT if direction_x > 0 else Direction.LEFT
     
     def _handle_chase_state(self, delta_time: float, player_position: Optional[Vec2i]) -> None:
         """Handle chase state behavior."""
@@ -147,8 +166,8 @@ class WalqerBot(BaseEnemy):
             return
         
         distance_to_player = math.sqrt(
-            (self.position.x - player_position.x) ** 2 +
-            (self.position.y - player_position.y) ** 2
+            (self._float_x - player_position.x) ** 2 +
+            (self._float_y - player_position.y) ** 2
         )
         
         # Check if player is in attack range
@@ -161,13 +180,20 @@ class WalqerBot(BaseEnemy):
             self.change_state(EnemyState.PATROL)
             return
         
-        # Chase player
-        direction_x = 1 if player_position.x > self.position.x else -1
-        movement = Vec2i(direction_x * int(self.speed * 1.5 * delta_time * 60), 0)
-        self.move(movement)
+        # Chase player - walk toward them smoothly
+        dx = player_position.x - self._float_x
+        if abs(dx) > 5:  # Only move if not already close
+            # Chase speed: 70 pixels per second
+            chase_speed = 70.0  # pixels per second
+            move_amount = chase_speed * delta_time
+            direction_x = 1 if dx > 0 else -1
+            
+            # Update float position smoothly
+            self._float_x += direction_x * move_amount
+            self.position = Vec2i(int(self._float_x), self.position.y)
         
         # Update facing direction
-        self.direction = Direction.RIGHT if direction_x > 0 else Direction.LEFT
+        self._direction = Direction.RIGHT if dx > 0 else Direction.LEFT
     
     def _handle_attack_state(self, delta_time: float, player_position: Optional[Vec2i]) -> None:
         """Handle attack state behavior."""
@@ -194,10 +220,9 @@ class WalqerBot(BaseEnemy):
             self.attack_cooldown = ENEMY_WALQER_ATTACK_COOLDOWN
     
     def _handle_hurt_state(self, delta_time: float) -> None:
-        """Handle hurt state behavior."""
-        # After hurt animation, return to previous state
-        if self.hurt_timer <= 0:
-            self.change_state(EnemyState.CHASE)
+        """Handle hurt state behavior - enemy is stunned."""
+        # Timer is handled in think() - enemy turns around after hurt
+        pass
     
     def _handle_dead_state(self, delta_time: float) -> None:
         """Handle dead state behavior."""

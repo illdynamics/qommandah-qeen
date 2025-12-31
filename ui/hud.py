@@ -1,320 +1,226 @@
+"""
+QommandahQeen HUD - Sprite-based UI elements
+Health bar (10 steps), Key indicator, Powerup bars (5 segments each)
+"""
 import pygame
+import os
 from typing import List, Optional, Tuple
 from core.resources import ResourceManager
 from shared.constants import (
-    SCREEN_WIDTH, SCREEN_HEIGHT, HUD_HEIGHT, HUD_MARGIN,
-    HUD_FONT_SIZE, HUD_TEXT_COLOR, HUD_BG_COLOR,
-    HUD_ICON_SIZE, HUD_FUEL_BAR_WIDTH, HUD_FUEL_BAR_HEIGHT,
-    HUD_FUEL_FULL_COLOR, HUD_FUEL_LOW_COLOR,
-    HUD_SCORE_LABEL, HUD_FUEL_LABEL, HUD_MODES_LABEL,
-    HUD_PLAYER_STATE_LABEL, HUD_HEALTH_BAR_WIDTH, HUD_HEALTH_BAR_HEIGHT,
-    HUD_HEALTH_FULL_COLOR, HUD_HEALTH_LOW_COLOR
+    SCREEN_WIDTH, SCREEN_HEIGHT, ASSETS_PATH, POWERUP_DURATION, POWERUP_BAR_SEGMENTS
 )
-from shared.types import PlayerState, WoNQModeType
-from core.particles import ParticleSystem, Particle
+from shared.types import PlayerState, PowerupType
+
 
 class HUD:
-    """Heads-Up Display for showing game status information."""
+    """Heads-Up Display with sprite-based UI elements."""
+    
     def __init__(self, resource_manager: ResourceManager):
-        """
-        Initialize the HUD.
-        
-        Args:
-            resource_manager: Resource manager for loading fonts and images
-        """
+        """Initialize the HUD with sprite assets."""
         self.resource_manager = resource_manager
-        self.font = self._load_font()
-        self.icons = self._load_icons()
+        
+        # State
         self.score = 0
-        self.fuel = 0.0
-        self.max_fuel = 100.0
+        self.health = 10
+        self.max_health = 10
+        self.has_key = False
+        self.jettpaq_remaining = 0.0  # Seconds remaining
+        self.jumpupstiq_remaining = 0.0  # Seconds remaining
+        self.player_state_name = "Normal"
         self.active_modes: List[str] = []
-        self.player_state: Optional[PlayerState] = None
-        self.health = 100
-        self.max_health = 100
-        self.particle_system = ParticleSystem()
-        self.mode_effects: dict = {}
-        self._initialize_mode_effects()
-
-    def _load_font(self) -> pygame.font.Font:
+        
+        # Load sprite assets
+        self._health_frames: List[pygame.Surface] = []
+        self._key_icon: Optional[pygame.Surface] = None
+        self._key_empty: Optional[pygame.Surface] = None
+        self._jettpaq_frames: List[pygame.Surface] = []
+        self._jumpupstiq_frames: List[pygame.Surface] = []
+        
+        self._load_sprites()
+        self._load_font()
+    
+    def _load_font(self) -> None:
         """Load the HUD font."""
         try:
-            return self.resource_manager.get_font("default", HUD_FONT_SIZE)
-        except KeyError:
-            return pygame.font.Font(None, HUD_FONT_SIZE)
-
-    def _load_icons(self) -> dict:
-        """Load HUD icons from resources."""
-        icons = {}
-        # Load mode icons
-        for mode_type in WoNQModeType:
-            icon_name = f"icon_{mode_type.name.lower()}"
-            try:
-                icons[icon_name] = self.resource_manager.get_image(icon_name)
-            except KeyError:
-                # Create placeholder icon
-                icons[icon_name] = pygame.Surface((HUD_ICON_SIZE, HUD_ICON_SIZE))
-                icons[icon_name].fill((100, 100, 200))
-        # Load player state icons
-        for state in PlayerState:
-            icon_name = f"icon_{state.name.lower()}"
-            try:
-                icons[icon_name] = self.resource_manager.get_image(icon_name)
-            except KeyError:
-                icons[icon_name] = pygame.Surface((HUD_ICON_SIZE, HUD_ICON_SIZE))
-                icons[icon_name].fill((200, 100, 100))
-        return icons
-
-    def _initialize_mode_effects(self) -> None:
-        """Initialize visual effects for different modes."""
-        self.mode_effects = {
-            "low_g": {"color": (100, 200, 255), "particle_type": "float"},
-            "mirror": {"color": (255, 100, 200), "particle_type": "mirror"},
-            "speedy_boots": {"color": (255, 200, 100), "particle_type": "speed"},
-            "bullet": {"color": (200, 100, 255), "particle_type": "slow"},
-            "junglist": {"color": (100, 255, 100), "particle_type": "beat"}
-        }
-
-    def update(self, score: int, fuel: float, max_fuel: float, 
-               active_modes: List[str], player_state_name: Optional[str] = None,
-               health: int = 100, max_health: int = 100) -> None:
-        """
-        Update HUD values.
+            self.font = pygame.font.Font(None, 24)
+            self.font_small = pygame.font.Font(None, 18)
+        except:
+            self.font = pygame.font.SysFont("arial", 24)
+            self.font_small = pygame.font.SysFont("arial", 18)
+    
+    def _load_sprites(self) -> None:
+        """Load all HUD sprite sheets."""
+        # Load health UI - 512x384, 4x3 grid of 128x128 = 12 frames
+        # We'll use frames 0-10 for health states (10 = full, 0 = empty)
+        health_path = os.path.join(ASSETS_PATH, "qq-health-ui.png")
+        if os.path.exists(health_path):
+            health_sheet = pygame.image.load(health_path).convert_alpha()
+            for row in range(3):
+                for col in range(4):
+                    x, y = col * 128, row * 128
+                    frame = pygame.Surface((128, 128), pygame.SRCALPHA)
+                    frame.blit(health_sheet, (0, 0), (x, y, 128, 128))
+                    # Scale down for HUD
+                    frame = pygame.transform.scale(frame, (48, 48))
+                    self._health_frames.append(frame)
+            print(f"Loaded health UI: {len(self._health_frames)} frames")
         
-        Args:
-            score: Current score
-            fuel: Current fuel amount
-            max_fuel: Maximum fuel capacity
-            active_modes: List of active mode names
-            player_state_name: Current player state name (optional)
-            health: Current health
-            max_health: Maximum health
-        """
+        # Load key UI - 256x192, 4x3 grid of 64x64
+        # Row 2 has the key UI icons (cells 0-3)
+        key_path = os.path.join(ASSETS_PATH, "qq-key-object.png")
+        if os.path.exists(key_path):
+            key_sheet = pygame.image.load(key_path).convert_alpha()
+            # Key icon (when player has key) - cell (1,0) or (2,0)
+            key_frame = pygame.Surface((64, 64), pygame.SRCALPHA)
+            key_frame.blit(key_sheet, (0, 0), (64, 0, 64, 64))
+            self._key_icon = pygame.transform.scale(key_frame, (32, 32))
+            # Empty key slot - cell (0,2) or just create a dim version
+            empty_frame = pygame.Surface((64, 64), pygame.SRCALPHA)
+            empty_frame.blit(key_sheet, (0, 0), (0, 128, 64, 64))
+            self._key_empty = pygame.transform.scale(empty_frame, (32, 32))
+            print("Loaded key UI sprites")
+        
+        # Load powerups UI - 512x384, 4x3 grid of 128x128 = 12 frames
+        # Row 0: JettPaq bars (5 states + empty = 6 frames: cols 0-3 row 0, cols 0-1 row 1)
+        # Row 1-2: Jumpupstiq bars (5 states + empty = 6 frames)
+        powerups_path = os.path.join(ASSETS_PATH, "qq-powerups-ui.png")
+        if os.path.exists(powerups_path):
+            powerups_sheet = pygame.image.load(powerups_path).convert_alpha()
+            
+            # Load JettPaq frames (first 6 cells: row 0 cols 0-3, row 1 cols 0-1)
+            for i in range(6):
+                row = i // 4
+                col = i % 4
+                x, y = col * 128, row * 128
+                frame = pygame.Surface((128, 128), pygame.SRCALPHA)
+                frame.blit(powerups_sheet, (0, 0), (x, y, 128, 128))
+                frame = pygame.transform.scale(frame, (48, 48))
+                self._jettpaq_frames.append(frame)
+            
+            # Load Jumpupstiq frames (next 6 cells: row 1 cols 2-3, row 2 cols 0-3)
+            indices = [(1, 2), (1, 3), (2, 0), (2, 1), (2, 2), (2, 3)]
+            for row, col in indices:
+                x, y = col * 128, row * 128
+                frame = pygame.Surface((128, 128), pygame.SRCALPHA)
+                frame.blit(powerups_sheet, (0, 0), (x, y, 128, 128))
+                frame = pygame.transform.scale(frame, (48, 48))
+                self._jumpupstiq_frames.append(frame)
+            
+            print(f"Loaded powerup UI: {len(self._jettpaq_frames)} jettpaq, {len(self._jumpupstiq_frames)} jumpupstiq")
+    
+    def update(self, score: int, health: int, max_health: int,
+               active_modes: List[str], player_state_name: Optional[str] = None,
+               has_key: bool = False, jettpaq_remaining: float = 0.0,
+               jumpupstiq_remaining: float = 0.0) -> None:
+        """Update HUD values."""
         self.score = score
-        self.fuel = fuel
-        self.max_fuel = max_fuel
-        self.active_modes = active_modes
-        self.player_state_name = player_state_name
         self.health = health
         self.max_health = max_health
-        
-        # Update particle effects for active modes
-        self._update_mode_particles()
-
-    def _update_mode_particles(self) -> None:
-        """Update particle effects for active modes."""
-        self.particle_system.update()
-        
-        # Add particles for each active mode
-        for mode in self.active_modes:
-            if mode in self.mode_effects:
-                effect = self.mode_effects[mode]
-                # Create particles at random positions along top of HUD
-                if pygame.time.get_ticks() % 30 == 0:  # Every 30ms
-                    x = pygame.time.get_ticks() % SCREEN_WIDTH
-                    y = HUD_HEIGHT // 2
-                    self._create_mode_particle(x, y, effect)
-
-    def _create_mode_particle(self, x: int, y: int, effect: dict) -> None:
-        """Create a particle for mode visual effect."""
-        color = effect["color"]
-        particle_type = effect["particle_type"]
-        
-        if particle_type == "float":
-            self.particle_system.create_smoke_emitter((x, y))
-        elif particle_type == "beat":
-            # Create pulsing particle for junglist mode
-            self.particle_system.create_explosion((x, y))
-
+        self.active_modes = active_modes
+        self.player_state_name = player_state_name or "Normal"
+        self.has_key = has_key
+        self.jettpaq_remaining = jettpaq_remaining
+        self.jumpupstiq_remaining = jumpupstiq_remaining
+    
     def render(self, surface: pygame.Surface) -> None:
-        """
-        Render the HUD to the given surface.
+        """Render the HUD to the given surface."""
+        # Draw semi-transparent background
+        hud_bg = pygame.Surface((SCREEN_WIDTH, 70), pygame.SRCALPHA)
+        hud_bg.fill((0, 0, 0, 180))
+        surface.blit(hud_bg, (0, 0))
         
-        Args:
-            surface: Pygame surface to render onto
-        """
-        # Draw HUD background
-        hud_rect = pygame.Rect(0, 0, SCREEN_WIDTH, HUD_HEIGHT)
-        pygame.draw.rect(surface, HUD_BG_COLOR, hud_rect)
+        # Render health bar (top left)
+        self._render_health(surface, 10, 10)
         
-        # Draw separator line
-        pygame.draw.line(surface, (100, 100, 100), (0, HUD_HEIGHT), 
-                        (SCREEN_WIDTH, HUD_HEIGHT), 2)
+        # Render score (next to health)
+        self._render_score(surface, 70, 15)
         
-        # Calculate positions for HUD elements
-        x_pos = HUD_MARGIN
-        y_pos = HUD_MARGIN
+        # Render key indicator (after score)
+        self._render_key(surface, 200, 15)
         
-        # Render score
-        self._render_score(surface, x_pos, y_pos)
-        x_pos += 150
+        # Render powerup bars if active (right side)
+        x_pos = SCREEN_WIDTH - 60
+        if self.jettpaq_remaining > 0:
+            self._render_powerup_bar(surface, x_pos, 10, "jettpaq", self.jettpaq_remaining)
+            x_pos -= 55
+        if self.jumpupstiq_remaining > 0:
+            self._render_powerup_bar(surface, x_pos, 10, "jumpupstiq", self.jumpupstiq_remaining)
         
-        # Render health bar
-        self._render_health_bar(surface, x_pos, y_pos)
-        x_pos += HUD_HEALTH_BAR_WIDTH + HUD_MARGIN
+        # Render player state (center-right)
+        self._render_state(surface, SCREEN_WIDTH - 200, 45)
+    
+    def _render_health(self, surface: pygame.Surface, x: int, y: int) -> None:
+        """Render health bar using sprite frames."""
+        if not self._health_frames:
+            # Fallback to simple bar
+            pygame.draw.rect(surface, (255, 0, 0), (x, y, 50, 10))
+            health_width = int(50 * (self.health / self.max_health))
+            pygame.draw.rect(surface, (0, 255, 0), (x, y, health_width, 10))
+            return
         
-        # Render fuel gauge
-        self._render_fuel_gauge(surface, x_pos, y_pos)
-        x_pos += HUD_FUEL_BAR_WIDTH + HUD_MARGIN
+        # Select frame based on health (0 = empty, max = full)
+        # With 10 health bars, frame index = health (0-10)
+        frame_idx = min(self.health, len(self._health_frames) - 1)
+        frame_idx = max(0, frame_idx)
         
-        # Render player state
-        if self.player_state_name:
-            self._render_player_state(surface, x_pos, y_pos)
-            x_pos += 120
-        
-        # Render active modes
-        self._render_active_modes(surface, x_pos, y_pos)
-        
-        # Render particle effects
-        self.particle_system.render(surface, (0, 0))
-
+        if frame_idx < len(self._health_frames):
+            surface.blit(self._health_frames[frame_idx], (x, y))
+    
     def _render_score(self, surface: pygame.Surface, x: int, y: int) -> None:
-        """Render the score display."""
-        score_text = f"{HUD_SCORE_LABEL}: {self.score}"
-        score_surface = self.font.render(score_text, True, HUD_TEXT_COLOR)
-        surface.blit(score_surface, (x, y))
+        """Render score display."""
+        score_text = f"SCORE:: {self.score}"
+        text_surface = self.font.render(score_text, True, (255, 255, 255))
+        surface.blit(text_surface, (x, y))
+    
+    def _render_key(self, surface: pygame.Surface, x: int, y: int) -> None:
+        """Render key indicator."""
+        if self.has_key and self._key_icon:
+            surface.blit(self._key_icon, (x, y))
+        elif self._key_empty:
+            # Draw dimmed key slot
+            surface.blit(self._key_empty, (x, y))
+    
+    def _render_powerup_bar(self, surface: pygame.Surface, x: int, y: int,
+                           powerup_type: str, remaining: float) -> None:
+        """Render powerup bar with segments."""
+        # Calculate which segment (0-5, where 5 = full, 0 = empty)
+        # POWERUP_DURATION = 120 seconds, 5 segments = 24 seconds each
+        segment_duration = POWERUP_DURATION / POWERUP_BAR_SEGMENTS
+        segments_remaining = int(remaining / segment_duration)
+        segments_remaining = min(POWERUP_BAR_SEGMENTS, max(0, segments_remaining))
         
-        # Add subtle glow effect for high scores
-        if self.score > 1000:
-            glow_surface = self.font.render(score_text, True, (255, 255, 100))
-            surface.blit(glow_surface, (x + 1, y + 1))
-
-    def _render_health_bar(self, surface: pygame.Surface, x: int, y: int) -> None:
-        """Render health bar."""
-        # Draw background
-        bg_rect = pygame.Rect(x, y, HUD_HEALTH_BAR_WIDTH, HUD_HEALTH_BAR_HEIGHT)
-        pygame.draw.rect(surface, (50, 50, 50), bg_rect)
+        frames = self._jettpaq_frames if powerup_type == "jettpaq" else self._jumpupstiq_frames
         
-        # Calculate health percentage
-        health_percent = self.health / self.max_health
-        health_width = int(HUD_HEALTH_BAR_WIDTH * health_percent)
-        
-        # Choose color based on health
-        if health_percent > 0.5:
-            health_color = HUD_HEALTH_FULL_COLOR
-        elif health_percent > 0.25:
-            health_color = (255, 200, 0)  # Yellow for medium health
+        if frames and segments_remaining < len(frames):
+            # Frame 0 = empty, Frame 5 = full
+            # So we use frame index = segments_remaining
+            surface.blit(frames[segments_remaining], (x, y))
         else:
-            health_color = HUD_HEALTH_LOW_COLOR
-            
-        # Draw health bar
-        health_rect = pygame.Rect(x, y, health_width, HUD_HEALTH_BAR_HEIGHT)
-        pygame.draw.rect(surface, health_color, health_rect)
-        
-        # Draw border
-        pygame.draw.rect(surface, HUD_TEXT_COLOR, bg_rect, 1)
-        
-        # Draw health text
-        health_text = f"{self.health}/{self.max_health}"
-        text_surface = self.font.render(health_text, True, HUD_TEXT_COLOR)
-        text_x = x + (HUD_HEALTH_BAR_WIDTH - text_surface.get_width()) // 2
-        text_y = y + (HUD_HEALTH_BAR_HEIGHT - text_surface.get_height()) // 2
-        surface.blit(text_surface, (text_x, text_y))
-
-    def _render_fuel_gauge(self, surface: pygame.Surface, x: int, y: int) -> None:
-        """Render the fuel gauge."""
-        # Draw background
-        bg_rect = pygame.Rect(x, y, HUD_FUEL_BAR_WIDTH, HUD_FUEL_BAR_HEIGHT)
-        pygame.draw.rect(surface, (50, 50, 50), bg_rect)
-        
-        # Calculate fuel percentage
-        fuel_percent = self.fuel / self.max_fuel if self.max_fuel > 0 else 0
-        fuel_width = int(HUD_FUEL_BAR_WIDTH * fuel_percent)
-        
-        # Choose color based on fuel level
-        fuel_color = HUD_FUEL_FULL_COLOR if fuel_percent > 0.3 else HUD_FUEL_LOW_COLOR
-        
-        # Draw fuel bar
-        fuel_rect = pygame.Rect(x, y, fuel_width, HUD_FUEL_BAR_HEIGHT)
-        pygame.draw.rect(surface, fuel_color, fuel_rect)
-        
-        # Add gradient effect
-        for i in range(fuel_width):
-            alpha = int(255 * (i / fuel_width)) if fuel_width > 0 else 0
-            gradient_rect = pygame.Rect(x + i, y, 1, HUD_FUEL_BAR_HEIGHT)
-            gradient_color = (
-                min(255, fuel_color[0] + alpha // 3),
-                min(255, fuel_color[1] + alpha // 3),
-                min(255, fuel_color[2] + alpha // 3)
-            )
-            pygame.draw.rect(surface, gradient_color, gradient_rect)
-        
-        # Draw border
-        pygame.draw.rect(surface, HUD_TEXT_COLOR, bg_rect, 1)
-        
-        # Draw fuel text
-        fuel_text = f"{HUD_FUEL_LABEL}: {int(self.fuel)}/{int(self.max_fuel)}"
-        text_surface = self.font.render(fuel_text, True, HUD_TEXT_COLOR)
-        text_x = x + (HUD_FUEL_BAR_WIDTH - text_surface.get_width()) // 2
-        text_y = y + (HUD_FUEL_BAR_HEIGHT - text_surface.get_height()) // 2
-        surface.blit(text_surface, (text_x, text_y))
-
-    def _render_player_state(self, surface: pygame.Surface, x: int, y: int) -> None:
-        """Render player state information."""
-        if not self.player_state_name:
-            return
-            
-        state_name = self.player_state_name.replace("_", " ").title()
-        state_text = f"{HUD_PLAYER_STATE_LABEL}: {state_name}"
-        text_surface = self.font.render(state_text, True, HUD_TEXT_COLOR)
+            # Fallback: draw simple bar
+            bar_width = 48
+            bar_height = 48
+            pygame.draw.rect(surface, (50, 50, 50), (x, y, bar_width, bar_height))
+            fill_height = int(bar_height * (remaining / POWERUP_DURATION))
+            color = (0, 200, 255) if powerup_type == "jettpaq" else (255, 200, 0)
+            pygame.draw.rect(surface, color, (x, y + bar_height - fill_height, bar_width, fill_height))
+    
+    def _render_state(self, surface: pygame.Surface, x: int, y: int) -> None:
+        """Render player state name."""
+        state_text = f"STATE:: {self.player_state_name}"
+        text_surface = self.font_small.render(state_text, True, (200, 200, 200))
         surface.blit(text_surface, (x, y))
-        
-        # Draw state icon if available
-        icon_name = f"icon_{self.player_state_name.lower()}"
-        if icon_name in self.icons:
-            icon = self.icons[icon_name]
-            icon_y = y + text_surface.get_height() + 5
-            surface.blit(icon, (x, icon_y))
-
-    def _render_active_modes(self, surface: pygame.Surface, x: int, y: int) -> None:
-        """Render active modes display."""
-        if not self.active_modes:
-            return
-            
-        modes_text = f"{HUD_MODES_LABEL}:"
-        text_surface = self.font.render(modes_text, True, HUD_TEXT_COLOR)
-        surface.blit(text_surface, (x, y))
-        
-        # Render mode icons
-        icon_y = y + text_surface.get_height() + 5
-        icon_x = x
-        
-        for mode in self.active_modes:
-            icon_name = f"icon_{mode.lower()}"
-            if icon_name in self.icons:
-                icon = self.icons[icon_name]
-                # Apply visual effect based on mode
-                if mode in self.mode_effects:
-                    effect_color = self.mode_effects[mode]["color"]
-                    # Create a colored overlay for the icon
-                    overlay = pygame.Surface((HUD_ICON_SIZE, HUD_ICON_SIZE), pygame.SRCALPHA)
-                    overlay.fill((*effect_color, 100))
-                    icon_copy = icon.copy()
-                    icon_copy.blit(overlay, (0, 0), special_flags=pygame.BLEND_RGBA_ADD)
-                    surface.blit(icon_copy, (icon_x, icon_y))
-                else:
-                    surface.blit(icon, (icon_x, icon_y))
-                
-                # Add pulsing effect for active modes
-                pulse = (pygame.time.get_ticks() % 1000) / 1000
-                pulse_alpha = int(100 + 155 * abs(pulse - 0.5))
-                pulse_surface = pygame.Surface((HUD_ICON_SIZE, HUD_ICON_SIZE), pygame.SRCALPHA)
-                pulse_surface.fill((255, 255, 255, pulse_alpha))
-                surface.blit(pulse_surface, (icon_x, icon_y), special_flags=pygame.BLEND_RGBA_ADD)
-                
-                icon_x += HUD_ICON_SIZE + 5
-
+    
     def get_height(self) -> int:
         """Get the height of the HUD."""
-        return HUD_HEIGHT
-
+        return 70
+    
     def clear(self) -> None:
         """Clear all HUD values."""
         self.score = 0
-        self.fuel = 0.0
-        self.max_fuel = 100.0
+        self.health = 10
+        self.max_health = 10
+        self.has_key = False
+        self.jettpaq_remaining = 0.0
+        self.jumpupstiq_remaining = 0.0
         self.active_modes = []
-        self.player_state = None
-        self.health = 100
-        self.max_health = 100
-        self.particle_system.clear_all()
+        self.player_state_name = "Normal"
