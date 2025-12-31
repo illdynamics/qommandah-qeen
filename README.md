@@ -1,6 +1,8 @@
 # 🎮 Qommandah Qeen
 [![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-blue.svg)](LICENSE)
 
+![Splash](assets/qq-main-menu.png)
+
 > **Commander Keen-Inspired Platformer with QonQrete Aesthetics**
 > Built with QonQrete AgentiQ OrQhestration
 
