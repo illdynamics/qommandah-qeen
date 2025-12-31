@@ -21,7 +21,7 @@ from objects.key_pickup import KeyPickup
 from objects.door import Door
 from ui.hud import HUD
 from ui.pause_menu import PauseMenu
-from shared.types import Vec2i, DoorState
+from shared.types import Vec2i, DoorState, PlayerStateType
 from modes.registry import ModeRegistry
 from shared.constants import *
 from shared.types import GameState, LevelData, Vector2
@@ -345,11 +345,9 @@ class GameScene(Scene):
             from shared.types import PowerupType
             jettpaq_remaining = self.player.get_powerup_remaining(PowerupType.JETTPAQ) if hasattr(self.player, 'get_powerup_remaining') else 0.0
             
-            # JumpUpstiq shows in UI when available OR mounted
+            # JumpUpstiq shows in UI only when mounted (on the pogo stick)
             jumpupstiq_remaining = 0.0
-            if hasattr(self.player, 'jumpupstiq_available') and self.player.jumpupstiq_available:
-                jumpupstiq_remaining = 999.0  # Show full bar when available (not mounted yet)
-            elif hasattr(self.player, 'jumpupstiq_mounted') and self.player.jumpupstiq_mounted:
+            if hasattr(self.player, 'jumpupstiq_mounted') and self.player.jumpupstiq_mounted:
                 jumpupstiq_remaining = 999.0  # Show full bar when mounted
             
             self.hud.update(
@@ -384,31 +382,42 @@ class GameScene(Scene):
             elif event.key == pygame.K_p:
                 self.toggle_pause()
                 return
+            elif event.key == pygame.K_SPACE:
+                # SPACE - interact with doors
+                self._try_enter_door()
+                return
             elif event.key == pygame.K_RETURN or event.key == pygame.K_e:
-                # Enter/E key - interact: mount/unmount JumpUpstiq OR use doors
-                self._handle_interact()
+                # ENTER/E - mount/unmount powerups (JumpUpstiq/JettPaq)
+                self._handle_powerup_toggle()
                 return
     
-    def _handle_interact(self) -> None:
-        """Handle interact key press - JumpUpstiq mount/unmount or door interaction."""
+    def _handle_powerup_toggle(self) -> None:
+        """Handle ENTER key - mount/unmount JumpUpstiq or JettPaq."""
         if not self.player:
             return
         
-        # Priority 1: If JumpUpstiq is mounted, unmount it
+        # If JumpUpstiq is mounted, unmount it
         if self.player.jumpupstiq_mounted:
             drop_pos = self.player.unmount_jumpupstiq()
             if drop_pos:
-                # Create a new JumpUpstiq pickup at the drop position
                 self._create_jumpupstiq_pickup(drop_pos[0], drop_pos[1])
             return
         
-        # Priority 2: If JumpUpstiq is available (collected but not mounted), mount it
-        if self.player.jumpupstiq_available:
-            self.player.mount_jumpupstiq()
-            return
-        
-        # Priority 3: Try to interact with doors
-        self._try_enter_door()
+        # Check if standing on a JumpUpstiq to mount it
+        if self.powerup_manager:
+            from shared.types import PowerupType
+            player_rect = self.player.get_rect()
+            for powerup in self.powerup_manager.powerups:
+                if powerup.powerup_type == PowerupType.JUMPUPSTIQ and not powerup.collected:
+                    if player_rect.colliderect(powerup.get_rect()):
+                        # Mount the JumpUpstiq directly
+                        self.player.jumpupstiq_mounted = True
+                        self.player._active_powerups[PowerupType.JUMPUPSTIQ] = 999999.0
+                        self.player._powerup_timers[PowerupType.JUMPUPSTIQ] = 999999.0
+                        self.player.change_state(PlayerStateType.JUMPUPSTIQ)
+                        powerup.mark_for_removal()
+                        print("[JUMPUPSTIQ] Mounted! Double jump height active. Press ENTER to unmount.")
+                        return
     
     def _create_jumpupstiq_pickup(self, x: float, y: float) -> None:
         """Create a JumpUpstiq pickup at the specified position."""
@@ -419,7 +428,7 @@ class GameScene(Scene):
             print(f"[JUMPUPSTIQ] Dropped at ({int(x)}, {int(y)})")
     
     def _try_enter_door(self) -> None:
-        """Try to open and enter a nearby door."""
+        """Try to open and enter a nearby door using SPACE."""
         if not self.player:
             return
             
@@ -431,7 +440,20 @@ class GameScene(Scene):
         for door in self.doors:
             door_rect = pygame.Rect(door.position[0], door.position[1], door.size[0], door.size[1])
             if player_rect.colliderect(door_rect):
-                if door.get_state() == DoorState.UNLOCKED:
+                current_state = door.get_state()
+                
+                if current_state == DoorState.LOCKED:
+                    # Check if player has key
+                    if self.player.has_key:
+                        door.unlock()
+                        self.player.has_key = False  # Consume the key
+                        print("[DOOR] Unlocked with key!")
+                        # Immediately start opening
+                        door.open_door()
+                        print("[DOOR] Opening door...")
+                    else:
+                        print("[DOOR] Locked! You need a key.")
+                elif current_state == DoorState.UNLOCKED:
                     # Start door opening animation
                     door.open_door()
                     print("[DOOR] Opening door...")
@@ -514,12 +536,9 @@ class GameScene(Scene):
             powerups = self.powerup_manager.check_player_collision(self.player)
             for powerup in powerups:
                 if powerup.powerup_type == PowerupType.JUMPUPSTIQ:
-                    # JumpUpstiq: Just mark as available, don't auto-mount
-                    # Player can mount it with E key
-                    if not self.player.jumpupstiq_available and not self.player.jumpupstiq_mounted:
-                        self.player.jumpupstiq_available = True
-                        print("[JUMPUPSTIQ] Picked up! Press E to mount the pogo stick.")
-                    powerup.mark_for_removal()
+                    # JumpUpstiq: Don't auto-pickup! Player must press ENTER to mount
+                    # Just pass through it
+                    pass
                 else:
                     # Other powerups auto-apply
                     self.player._apply_powerup(powerup.powerup_type)

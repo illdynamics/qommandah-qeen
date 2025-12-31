@@ -159,6 +159,50 @@ class Player:
                     print(f"Loaded walk animation: {len(walk_frames)} frames (cells 1-15 from row 0)")
             else:
                 print(f"Walk sprite not found: {walk_sprite_path}")
+            
+            # Load JumpUpstiq sprite sheet (qq-qeen-jumpupstiq.png) for pogo animations
+            # Sheet is 1024x512 = 8x4 grid of 128x128
+            jumpupstiq_sprite_path = os.path.join(ASSETS_PATH, "qq-qeen-jumpupstiq.png")
+            if os.path.exists(jumpupstiq_sprite_path):
+                jumpupstiq_sheet = pygame.image.load(jumpupstiq_sprite_path).convert_alpha()
+                cell_size = 128
+                
+                # Load pogo_idle (row 0, 8 frames)
+                pogo_idle_frames = []
+                for col in range(8):
+                    x = col * cell_size
+                    y = 0
+                    frame = pygame.Surface((cell_size, cell_size), pygame.SRCALPHA)
+                    frame.blit(jumpupstiq_sheet, (0, 0), (x, y, cell_size, cell_size))
+                    pogo_idle_frames.append(frame)
+                if pogo_idle_frames:
+                    self._sprite_frames['pogo_idle'] = pogo_idle_frames
+                
+                # Load pogo_bounce (row 2, 8 frames)
+                pogo_bounce_frames = []
+                for col in range(8):
+                    x = col * cell_size
+                    y = 2 * cell_size
+                    frame = pygame.Surface((cell_size, cell_size), pygame.SRCALPHA)
+                    frame.blit(jumpupstiq_sheet, (0, 0), (x, y, cell_size, cell_size))
+                    pogo_bounce_frames.append(frame)
+                if pogo_bounce_frames:
+                    self._sprite_frames['pogo_bounce'] = pogo_bounce_frames
+                
+                # Load pogo_land (row 3, 4 frames)
+                pogo_land_frames = []
+                for col in range(4):
+                    x = col * cell_size
+                    y = 3 * cell_size
+                    frame = pygame.Surface((cell_size, cell_size), pygame.SRCALPHA)
+                    frame.blit(jumpupstiq_sheet, (0, 0), (x, y, cell_size, cell_size))
+                    pogo_land_frames.append(frame)
+                if pogo_land_frames:
+                    self._sprite_frames['pogo_land'] = pogo_land_frames
+                
+                print(f"Loaded JumpUpstiq sprites: pogo_idle({len(pogo_idle_frames)}), pogo_bounce({len(pogo_bounce_frames)}), pogo_land({len(pogo_land_frames)})")
+            else:
+                print(f"JumpUpstiq sprite not found: {jumpupstiq_sprite_path}")
                 
         except Exception as e:
             print(f"Error loading player sprites: {e}")

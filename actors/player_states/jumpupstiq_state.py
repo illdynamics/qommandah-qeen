@@ -226,13 +226,19 @@ class JumpUpStiqState(BasePlayerState):
             self.particle_system.render(surface, camera_offset)
 
     def _update_animation(self) -> None:
-        """Update player animation based on state."""
-        if self.is_bouncing:
-            animation_name = 'bounce'
+        """Update player animation based on state - use pogo sprites!"""
+        if self.is_bouncing or self.player.velocity.y < -10:
+            # Bouncing or moving up - use pogo_bounce
+            animation_name = 'pogo_bounce'
+        elif self.player.velocity.y > 50:
+            # Falling - use pogo_bounce (falling frame)
+            animation_name = 'pogo_bounce'
         elif abs(self.player.velocity.x) > 0.1:
-            animation_name = 'run_boosted'
+            # Moving horizontally - use pogo_idle (it has movement)
+            animation_name = 'pogo_idle'
         else:
-            animation_name = 'idle_boosted'
+            # Standing still on pogo - use pogo_idle
+            animation_name = 'pogo_idle'
         
         if hasattr(self.player, 'current_animation') and self.player.current_animation != animation_name:
             self.player.current_animation = animation_name

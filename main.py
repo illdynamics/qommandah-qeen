@@ -1,25 +1,33 @@
 #!/usr/bin/env python3
 """
-QommandahQeen MAQZIMUM v0.5.3-alpha
+QommandahQeen MAQZIMUM v0.5.4-alpha
 A Commander Keen-inspired platformer with QonQrete aesthetics.
 
 CONTROLS:
 - Arrow Keys / WASD: Move
-- Z / Space / Up / W: Jump  
+- Z / Up / W: Jump  
 - X / Ctrl: Shoot
-- Enter / E: Interact with doors
-- ESC: Pause
+- SPACE: Interact (open doors with key)
+- ENTER / E: Mount/Unmount powerups (JumpUpstiq, JettPaq)
+- ESC / P: Pause
 - F11: Fullscreen
 
 HOW TO USE POWERUPS:
-- Just walk into the JettPaq (blue) or JumpUpstiq (red) to collect them!
-- Once collected, you'll see the powerup bar appear in the HUD
-- Powerups last 2 minutes
+- JumpUpstiq (red pogo): Stand on it and press ENTER to mount
+  - Press ENTER again to unmount (drops it where you stand)
+  - Double jump height when mounted!
+- JettPaq (blue jetpack): Walk into it to auto-equip (timed powerup)
 
-v0.5.3-alpha Changelog:
-- Fixed JettPaq crash: Added missing 'import random' 
-- Removed glitchy JettPaq powerup from level 1
-- Level now has: JumpUpstiq -> Key -> Door (clean progression)
+DOORS & KEYS:
+- Pick up the key by walking into it
+- Stand at the door and press SPACE to unlock and enter
+- Door plays opening animation then transitions to next room
+
+v0.5.4-alpha Changelog:
+- NEW CONTROL SCHEME: SPACE=Interact, ENTER=Mount/Unmount powerups
+- JumpUpstiq requires ENTER to mount (no auto-pickup)
+- Doors use key system with unlock animation
+- Level 1: key next to door, wall barrier on right
 """
 
 import sys

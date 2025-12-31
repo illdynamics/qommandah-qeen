@@ -68,7 +68,8 @@ class InputManager:
         # Actions
         self.map_action("jump", pygame.K_SPACE, pygame.K_UP, pygame.K_w, pygame.K_z)
         self.map_action("attack", pygame.K_x, pygame.K_LCTRL, pygame.K_RCTRL)
-        self.map_action("interact", pygame.K_e, pygame.K_RETURN)
+        self.map_action("interact", pygame.K_SPACE)  # SPACE for doors/interaction
+        self.map_action("powerup_toggle", pygame.K_RETURN, pygame.K_e)  # ENTER/E for mount/unmount powerups
         
         # System
         self.map_action("pause", pygame.K_ESCAPE, pygame.K_p)
